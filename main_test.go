@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +61,7 @@ func TestCountFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary file
-			tmpfile, err := ioutil.TempFile("", "bitcount_test")
+			tmpfile, err := os.CreateTemp("", "bitcount_test")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -105,7 +104,7 @@ func TestCountFile(t *testing.T) {
 // TestCountDirectory tests the count method with directory traversal
 func TestCountDirectory(t *testing.T) {
 	// Create temporary directory structure
-	tmpdir, err := ioutil.TempDir("", "bitcount_test_dir")
+	tmpdir, err := os.MkdirTemp("", "bitcount_test_dir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +122,7 @@ func TestCountDirectory(t *testing.T) {
 
 	for filename, content := range testFiles {
 		filepath := filepath.Join(tmpdir, filename)
-		if err := ioutil.WriteFile(filepath, content, 0644); err != nil {
+		if err := os.WriteFile(filepath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
 		totalExpectedBytes += len(content)
@@ -145,7 +144,7 @@ func TestCountDirectory(t *testing.T) {
 	}
 	subfilePath := filepath.Join(subdir, "subfile.txt")
 	subfileContent := []byte{0xAA} // 4 bits
-	if err := ioutil.WriteFile(subfilePath, subfileContent, 0644); err != nil {
+	if err := os.WriteFile(subfilePath, subfileContent, 0644); err != nil {
 		t.Fatal(err)
 	}
 	totalExpectedBytes += len(subfileContent)
@@ -185,14 +184,14 @@ func TestErrorHandling(t *testing.T) {
 			t.Error("expected at least one error in bc.errs for nonexistent directory")
 		}
 		// Check that the error message contains something about the path not existing
-		if len(bc.errs) > 0 && !strings.Contains(bc.errs[0], "nil os.FileInfo") {
-			t.Errorf("expected 'nil os.FileInfo' error, got: %v", bc.errs)
+		if len(bc.errs) > 0 && !strings.Contains(bc.errs[0], "walk error") {
+			t.Errorf("expected 'walk error' message, got: %v", bc.errs)
 		}
 	})
 
 	t.Run("valid directory processing", func(t *testing.T) {
 		// Test that the error handling mechanism works with a valid directory
-		tmpdir, err := ioutil.TempDir("", "bitcount_valid_test")
+		tmpdir, err := os.MkdirTemp("", "bitcount_valid_test")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -200,7 +199,7 @@ func TestErrorHandling(t *testing.T) {
 
 		// Create a normal file that should be processed successfully
 		testFile := filepath.Join(tmpdir, "test.txt")
-		if err := ioutil.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -226,7 +225,7 @@ func TestErrorHandling(t *testing.T) {
 // TestLargeFile tests behavior with files larger than the buffer
 func TestLargeFile(t *testing.T) {
 	// Create a file larger than BUFF_SIZE to test buffer handling
-	tmpfile, err := ioutil.TempFile("", "bitcount_large_test")
+	tmpfile, err := os.CreateTemp("", "bitcount_large_test")
 	if err != nil {
 		t.Fatal(err)
 	}
