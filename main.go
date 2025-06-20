@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -39,20 +39,32 @@ func (bc *bitcounter) countFile(infile *os.File) error {
 }
 
 func (bc *bitcounter) count(root string) error {
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if info == nil {
-			bc.errs = append(bc.errs, fmt.Sprintf("nil os.FileInfo: %s", path))
+	fsys := os.DirFS(root)
+	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			bc.errs = append(bc.errs, fmt.Sprintf("walk error for %s: %v", path, err))
 			return nil
 		}
-		if info.Mode().IsRegular() {
-			fmt.Printf("%s\n", path)
-			in, err := os.Open(path)
-			defer in.Close()
+		if d == nil {
+			bc.errs = append(bc.errs, fmt.Sprintf("nil fs.DirEntry: %s", path))
+			return nil
+		}
+		if d.Type().IsRegular() {
+			// Convert relative path back to full path for display and opening
+			fullPath := root
+			if path != "." {
+				fullPath = root + "/" + path
+			}
+			fmt.Printf("%s\n", fullPath)
+			in, err := os.Open(fullPath)
 			if err != nil {
 				bc.errs = append(bc.errs, err.Error())
 				return nil
 			}
-			bc.countFile(in)
+			defer in.Close()
+			if countErr := bc.countFile(in); countErr != nil {
+				bc.errs = append(bc.errs, fmt.Sprintf("error counting file %s: %v", fullPath, countErr))
+			}
 		}
 		return nil
 	})
